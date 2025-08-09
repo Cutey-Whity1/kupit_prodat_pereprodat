@@ -71,7 +71,7 @@ class DatabaseManager:
         conn = sqlite3.connect(self.database)
         with conn:
             cur = conn.cursor()
-            cur.execute('SELECT user_id FROM users')
+            cur.execute('SELECT * FROM users')
             return [x[0] for x in cur.fetchall()] 
         
     def get_prize_img(self, prize_id):
@@ -82,13 +82,39 @@ class DatabaseManager:
             result = cur.fetchone()
             return result[0] if result else None
 
+    def get_winners_count(self, prize_id):
+        conn = sqlite3.connect(self.database)
+        with conn:
+            cur = conn.cursor()
+            cur.execute('''
+                SELECT COUNT(*) 
+                FROM winners 
+                WHERE prize_id = ?
+            ''', (prize_id,))
+            return cur.fetchall()[0][0]
+    
+    
+        
+    def get_rating(self):
+        conn = sqlite3.connect(self.database)
+        with conn:
+            cur = conn.cursor()
+            cur.execute('''
+                SELECT u.user_id, u.user_name, COUNT(w.prize_id) as wins_count
+                FROM users u
+                LEFT JOIN winners w ON u.user_id = w.user_id
+                GROUP BY u.user_id, u.user_name
+                ORDER BY wins_count DESC, u.user_name
+            ''')
+            return cur.fetchall()
+
     def get_random_prize(self):
         conn = sqlite3.connect(self.database)
         with conn:
             cur = conn.cursor()
             # Выбираем случайный неиспользованный приз
             cur.execute('''
-                SELECT prize_id, image FROM prizes 
+                SELECT * FROM prizes 
                 WHERE used = 0 
                 ORDER BY RANDOM() 
                 LIMIT 1
