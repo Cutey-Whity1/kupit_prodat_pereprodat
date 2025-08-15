@@ -38,6 +38,33 @@ class DatabaseManager:
             ''')
             # conn.commit() не нужен здесь, так как with conn автоматически коммитит
 
+    def hide_img(self, img_name):
+        """Создаёт размытую версию изображения для предпросмотра"""
+        try:
+            if not os.path.exists('hidden_img'):
+                os.makedirs('hidden_img')
+                
+            img_path = os.path.join('img', img_name)
+            if not os.path.exists(img_path):
+                raise FileNotFoundError(f"Файл {img_path} не существует")
+            
+            image = cv2.imread(img_path)
+            if image is None:
+                raise ValueError(f"Не удалось загрузить изображение {img_path}")
+            
+            # Создаём размытую и пикселизированную версию
+            blurred = cv2.GaussianBlur(image, (99, 99), 0)
+            small = cv2.resize(blurred, (10, 10), interpolation=cv2.INTER_LINEAR)
+            pixelated = cv2.resize(small, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
+            
+            output_path = os.path.join('hidden_img', img_name)
+            cv2.imwrite(output_path, pixelated)
+            print(f"Создано скрытое изображение: {output_path}")
+            return True
+        except Exception as e:
+            print(f"Ошибка в hide_img: {str(e)}")
+        return False
+
     def add_user(self, user_id, user_name):
         conn = sqlite3.connect(self.database)
         with conn:
@@ -54,12 +81,13 @@ class DatabaseManager:
         win_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         conn = sqlite3.connect(self.database)
         with conn:
+            cursor = conn.cursor()
             # Используем INSERT OR IGNORE для избежания дубликатов
-            conn.execute('''
+            cursor.execute('''
                 INSERT OR IGNORE INTO winners (user_id, prize_id, win_time) 
                 VALUES (?, ?, ?)
             ''', (user_id, prize_id, win_time))
-            return conn.changes > 0  # Возвращаем True, если была добавлена запись
+            return cursor.rowcount > 0  # Используем rowcount вместо changes
 
     def mark_prize_used(self, prize_id):
         conn = sqlite3.connect(self.database)
